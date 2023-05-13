@@ -1,0 +1,94 @@
+version: '3'
+services:
+  ssh:
+    build:
+      context: ./SSH
+      dockerfile: Dockerfile
+    ports:
+      - "22:22"
+    networks:
+      - my_network
+
+  postfix:
+    build:
+      context: ./Postfix
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - dns
+    networks:
+      - my_network
+    environment:
+      MYSQL_HOST: db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 1234
+      MYSQL_DATABASE: H3rmesBBDD
+      SMTP_SERVER_HOST: dns
+    ports:
+      - "25:25"
+    volumes:
+      - ./Postfix/main.cf:/etc/postfix/main.cf
+    restart: always
+
+  dns:
+    build:
+      context: ./DNS
+      dockerfile: Dockerfile
+    ports:
+      - "77:53"
+      - "77:53/udp"
+    networks:
+      - my_network
+
+  ftp:
+    build:
+      context: ./FTP
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      FTP_USER_NAME: ftpuser
+      FTP_USER_PASS: ftppassword
+    volumes:
+      - ftp_data:/var/ftp
+      - ftp_conf:/etc/vsftpd
+    ports:
+      - "21:21"
+    networks:
+      - my_network
+
+  db:
+    build:
+      context: ./MYSQL
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: H3rmesBBDD
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./MYSQL/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - my_network
+  
+  wireshark:
+    build:
+      context: ./WireShark
+      dockerfile: Dockerfile
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    network_mode: "host"
+    environment:
+      DISPLAY: ${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+
+networks:
+  my_network:
+
+volumes:
+  ftp_data:
+  ftp_conf:
+  db_data:
+
